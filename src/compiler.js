@@ -19,20 +19,6 @@ function normalizeValue(value) {
   return value;
 }
 
-function coerceNumericLike(value) {
-  if (typeof value === 'number') {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (trimmed !== '' && /^-?\d+(\.\d+)?$/.test(trimmed)) {
-      const numeric = Number(trimmed);
-      return Number.isNaN(numeric) ? value : numeric;
-    }
-  }
-  return value;
-}
-
 function createContext(userContext = {}) {
   const context = Object.create(null);
   for (const [key, helper] of Object.entries(BUILT_INS)) {
@@ -50,15 +36,9 @@ function createContext(userContext = {}) {
 }
 
 function evaluateExpression(rawExpression, context) {
-  const replaced = rawExpression.replace(/\$([A-Za-z_][\w]*)/g, (_, name) => `__resolve("${name}")`);
-  const resolve = (name) => coerceNumericLike(context[name]);
+  const replaced = rawExpression.replace(/\$([A-Za-z_][\w]*)/g, (_, name) => `context.${name}`);
   const script = new vm.Script(replaced, { displayErrors: true });
-  return script.runInNewContext({
-    __resolve: resolve,
-    Math,
-    Number,
-    parseInt: Number.parseInt,
-  });
+  return script.runInNewContext({ context, Math, Number, parseInt: Number.parseInt });
 }
 
 function interpolate(text, context) {
