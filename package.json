@@ -1,0 +1,13 @@
+{
+  "name": "vtl-plyaground",
+  "version": "1.0.0",
+  "description": "Simple Velocity-like template renderer",
+  "main": "src/compiler.js",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
