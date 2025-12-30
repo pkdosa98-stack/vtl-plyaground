@@ -1,22 +1,5 @@
 const vm = require('node:vm');
 
-function tryLoadVelocity() {
-  try {
-    // velocityjs is an optional dependency. If it is not available in the
-    // environment we silently fall back to the built-in renderer.
-    // eslint-disable-next-line global-require, import/no-extraneous-dependencies
-    return require('velocityjs');
-  } catch (error) {
-    if (error.code !== 'MODULE_NOT_FOUND') {
-      // Surface unexpected errors to avoid masking real issues.
-      throw error;
-    }
-    return null;
-  }
-}
-
-const velocityEngine = tryLoadVelocity();
-
 const BUILT_INS = {
   Integer: Object.freeze({
     parseInt(value) {
@@ -32,20 +15,6 @@ const BUILT_INS = {
 function normalizeValue(value) {
   if (typeof value === 'number') {
     return Number.isInteger(value) ? value : Math.trunc(value);
-  }
-  return value;
-}
-
-function coerceNumericLike(value) {
-  if (typeof value === 'number') {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (trimmed !== '' && /^-?\d+(\.\d+)?$/.test(trimmed)) {
-      const numeric = Number(trimmed);
-      return Number.isNaN(numeric) ? value : numeric;
-    }
   }
   return value;
 }
@@ -67,15 +36,9 @@ function createContext(userContext = {}) {
 }
 
 function evaluateExpression(rawExpression, context) {
-  const replaced = rawExpression.replace(/\$([A-Za-z_][\w]*)/g, (_, name) => `__resolve("${name}")`);
-  const resolve = (name) => coerceNumericLike(context[name]);
+  const replaced = rawExpression.replace(/\$([A-Za-z_][\w]*)/g, (_, name) => `context.${name}`);
   const script = new vm.Script(replaced, { displayErrors: true });
-  return script.runInNewContext({
-    __resolve: resolve,
-    Math,
-    Number,
-    parseInt: Number.parseInt,
-  });
+  return script.runInNewContext({ context, Math, Number, parseInt: Number.parseInt });
 }
 
 function interpolate(text, context) {
@@ -253,28 +216,8 @@ function render(template, userContext = {}) {
   return output.join('');
 }
 
-function renderWithVelocity(template, userContext = {}) {
-  if (!velocityEngine) {
-    return null;
-  }
-
-  const context = createContext(userContext);
-  return velocityEngine.render(template, context);
-}
-
-function renderTemplate(template, userContext = {}, options = {}) {
-  if (options.preferVelocity) {
-    const rendered = renderWithVelocity(template, userContext);
-    if (rendered !== null && rendered !== undefined) {
-      return rendered;
-    }
-  }
-  return render(template, userContext);
-}
-
 module.exports = {
   render,
-  renderTemplate,
   tokenize,
   evaluateExpression,
   interpolate,
