@@ -128,3 +128,42 @@ $value
     delete require.cache[compilerPath];
   }
 });
+
+test('renders indented template with spaces after directives', () => {
+  const template = `
+#set($Integer = 0)
+#set($result = "Idle") 
+#if ($pswLastChangedTime == "")
+$result
+#else
+  #set($nowYear = $Integer.parseInt($nowTime) / 10000)
+  #set($nowMonth = ($Integer.parseInt($nowTime) % 10000) / 100)
+  #set($nowDay = $Integer.parseInt($nowTime) % 100)
+  #set($pswYear = $Integer.parseInt($pswLastChangedTime) / 10000)
+  #set($pswMonth = ($Integer.parseInt($pswLastChangedTime) % 10000) / 100)
+  #set($pswDay = $Integer.parseInt($pswLastChangedTime) % 100)
+  #set($nowDays = ($nowYear * 365) + ($nowMonth * 30) + $nowDay)
+$nowDays
+  #set($pswDays = ($pswYear * 365) + ($pswMonth * 30) + $pswDay)
+  #set($diffInDays = ($nowDays - $pswDays))
+$diffInDays
+  #if ($diffInDays == 21)
+    #set($result = 21)
+  #elseif ($diffInDays == 12)
+    #set($result = 12)
+  #elseif ($diffInDays >= 1 && $diffInDays <= 11)
+    #set($result = $diffInDays)
+  #else
+    #set($result = "Idle")
+  #end
+  $result
+#end`;
+
+  const output = render(template, {
+    pswLastChangedTime: '251221',
+    nowTime: '251229',
+  }).trim();
+
+  const cleaned = output.split(/\s+/).filter(Boolean);
+  assert.deepStrictEqual(cleaned, ['9514', '8', '8']);
+});

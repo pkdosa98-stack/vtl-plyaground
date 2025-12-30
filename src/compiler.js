@@ -108,6 +108,11 @@ function tokenize(template) {
   const tokens = [];
   let cursor = 0;
 
+  const matchesDirective = (index, keyword) => {
+    const slice = template.slice(index);
+    return new RegExp(`^#${keyword}\\s*\\(`).test(slice);
+  };
+
   const pushText = (start, end) => {
     if (end > start) {
       tokens.push({ type: 'text', value: template.slice(start, end) });
@@ -123,22 +128,25 @@ function tokenize(template) {
 
     pushText(cursor, hashIndex);
 
-    if (template.startsWith('#set(', hashIndex)) {
-      const { content, endIndex } = readParenthesized(template, hashIndex + 4);
+    if (matchesDirective(hashIndex, 'set')) {
+      const offset = template.slice(hashIndex).match(/^#set\s*\(/)[0].length - 1;
+      const { content, endIndex } = readParenthesized(template, hashIndex + offset);
       tokens.push({ type: 'set', content });
       cursor = endIndex;
       continue;
     }
 
-    if (template.startsWith('#if(', hashIndex)) {
-      const { content, endIndex } = readParenthesized(template, hashIndex + 3);
+    if (matchesDirective(hashIndex, 'if')) {
+      const offset = template.slice(hashIndex).match(/^#if\s*\(/)[0].length - 1;
+      const { content, endIndex } = readParenthesized(template, hashIndex + offset);
       tokens.push({ type: 'if', content });
       cursor = endIndex;
       continue;
     }
 
-    if (template.startsWith('#elseif(', hashIndex)) {
-      const { content, endIndex } = readParenthesized(template, hashIndex + 7);
+    if (matchesDirective(hashIndex, 'elseif')) {
+      const offset = template.slice(hashIndex).match(/^#elseif\s*\(/)[0].length - 1;
+      const { content, endIndex } = readParenthesized(template, hashIndex + offset);
       tokens.push({ type: 'elseif', content });
       cursor = endIndex;
       continue;
