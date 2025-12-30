@@ -7,16 +7,6 @@
   "scripts": {
     "test": "node --test"
   },
-  "exports": {
-    ".": "./src/compiler.js"
-  },
-  "files": [
-    "src",
-    "README.md"
-  ],
-  "engines": {
-    "node": ">=18"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC"

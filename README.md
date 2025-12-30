@@ -1,10 +1,10 @@
 # vtl-plyaground
 
-A minimal Velocity-inspired template renderer that keeps Java-style integer math semantics. It can optionally delegate to `velocityjs` when available (and fall back to the built-in renderer otherwise).
+A minimal Velocity-inspired template renderer that keeps Java-style integer math semantics.
 
 ## Development
 
-- Install dependencies (none beyond Node.js). The repository uses the built-in `node:test` runner. If you want to use the Velocity engine, add `velocityjs` as a dependency; the renderer will prefer it when `preferVelocity` is set and will automatically fall back to the built-in renderer if Velocity is missing or throws.
+- Install dependencies (none beyond Node.js). The repository uses the built-in `node:test` runner.
 - Run tests: `npm test`
 
 ## Example

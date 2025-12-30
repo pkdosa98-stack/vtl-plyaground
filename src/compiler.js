@@ -1,22 +1,5 @@
 const vm = require('node:vm');
 
-function tryLoadVelocity() {
-  try {
-    // velocityjs is an optional dependency. If it is not available in the
-    // environment we silently fall back to the built-in renderer.
-    // eslint-disable-next-line global-require, import/no-extraneous-dependencies
-    return require('velocityjs');
-  } catch (error) {
-    if (error.code !== 'MODULE_NOT_FOUND') {
-      // Surface unexpected errors to avoid masking real issues.
-      throw error;
-    }
-    return null;
-  }
-}
-
-const velocityEngine = tryLoadVelocity();
-
 const BUILT_INS = {
   Integer: Object.freeze({
     parseInt(value) {
@@ -32,20 +15,6 @@ const BUILT_INS = {
 function normalizeValue(value) {
   if (typeof value === 'number') {
     return Number.isInteger(value) ? value : Math.trunc(value);
-  }
-  return value;
-}
-
-function coerceNumericLike(value) {
-  if (typeof value === 'number') {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (trimmed !== '' && /^-?\d+(\.\d+)?$/.test(trimmed)) {
-      const numeric = Number(trimmed);
-      return Number.isNaN(numeric) ? value : numeric;
-    }
   }
   return value;
 }
@@ -67,15 +36,9 @@ function createContext(userContext = {}) {
 }
 
 function evaluateExpression(rawExpression, context) {
-  const replaced = rawExpression.replace(/\$([A-Za-z_][\w]*)/g, (_, name) => `__resolve("${name}")`);
-  const resolve = (name) => coerceNumericLike(context[name]);
+  const replaced = rawExpression.replace(/\$([A-Za-z_][\w]*)/g, (_, name) => `context.${name}`);
   const script = new vm.Script(replaced, { displayErrors: true });
-  return script.runInNewContext({
-    __resolve: resolve,
-    Math,
-    Number,
-    parseInt: Number.parseInt,
-  });
+  return script.runInNewContext({ context, Math, Number, parseInt: Number.parseInt });
 }
 
 function interpolate(text, context) {
@@ -108,11 +71,6 @@ function tokenize(template) {
   const tokens = [];
   let cursor = 0;
 
-  const matchesDirective = (index, keyword) => {
-    const slice = template.slice(index);
-    return new RegExp(`^#${keyword}\\s*\\(`).test(slice);
-  };
-
   const pushText = (start, end) => {
     if (end > start) {
       tokens.push({ type: 'text', value: template.slice(start, end) });
@@ -128,25 +86,22 @@ function tokenize(template) {
 
     pushText(cursor, hashIndex);
 
-    if (matchesDirective(hashIndex, 'set')) {
-      const offset = template.slice(hashIndex).match(/^#set\s*\(/)[0].length - 1;
-      const { content, endIndex } = readParenthesized(template, hashIndex + offset);
+    if (template.startsWith('#set(', hashIndex)) {
+      const { content, endIndex } = readParenthesized(template, hashIndex + 4);
       tokens.push({ type: 'set', content });
       cursor = endIndex;
       continue;
     }
 
-    if (matchesDirective(hashIndex, 'if')) {
-      const offset = template.slice(hashIndex).match(/^#if\s*\(/)[0].length - 1;
-      const { content, endIndex } = readParenthesized(template, hashIndex + offset);
+    if (template.startsWith('#if(', hashIndex)) {
+      const { content, endIndex } = readParenthesized(template, hashIndex + 3);
       tokens.push({ type: 'if', content });
       cursor = endIndex;
       continue;
     }
 
-    if (matchesDirective(hashIndex, 'elseif')) {
-      const offset = template.slice(hashIndex).match(/^#elseif\s*\(/)[0].length - 1;
-      const { content, endIndex } = readParenthesized(template, hashIndex + offset);
+    if (template.startsWith('#elseif(', hashIndex)) {
+      const { content, endIndex } = readParenthesized(template, hashIndex + 7);
       tokens.push({ type: 'elseif', content });
       cursor = endIndex;
       continue;
@@ -261,38 +216,8 @@ function render(template, userContext = {}) {
   return output.join('');
 }
 
-function renderWithVelocity(template, userContext = {}) {
-  if (!velocityEngine) {
-    return null;
-  }
-
-  const context = createContext(userContext);
-  return velocityEngine.render(template, context);
-}
-
-function renderTemplate(template, userContext = {}, options = {}) {
-  const preferVelocity = options.preferVelocity === true;
-  const fallbackOnError = options.fallbackOnError !== false;
-
-  if (preferVelocity) {
-    try {
-      const rendered = renderWithVelocity(template, userContext);
-      if (rendered !== null && rendered !== undefined) {
-        return rendered;
-      }
-    } catch (error) {
-      if (!fallbackOnError) {
-        throw error;
-      }
-    }
-  }
-
-  return render(template, userContext);
-}
-
 module.exports = {
   render,
-  renderTemplate,
   tokenize,
   evaluateExpression,
   interpolate,
